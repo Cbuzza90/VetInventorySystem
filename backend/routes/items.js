@@ -54,22 +54,29 @@ router.delete('/:id', (req, res) => {
 
 // Get items by subcategory ID
 router.get('/:subcategoryId', (req, res) => {
+    console.log('Request received at /items/:subcategoryId');
+    console.log('Fetching items for subcategory ID:', req.params.subcategoryId);
+
     const db = req.db;
     const { subcategoryId } = req.params;
 
     db.query(
-        'SELECT * FROM Items WHERE SubcategoryId = ?',
+        'SELECT * FROM Items WHERE idSubcategory = ?',
         [subcategoryId],
         (err, results) => {
             if (err) {
-                res.status(500).send(err);
+                console.error('Database query error:', err);
+                res.status(500).json({ message: 'Internal server error' });
             } else if (results.length === 0) {
+                console.log('No items found for subcategory ID:', subcategoryId);
                 res.status(404).json({ message: 'No items found for this subcategory.' });
             } else {
+                console.log('Items fetched successfully:', results);
                 res.json(results);
             }
         }
     );
 });
+
 
 module.exports = router;

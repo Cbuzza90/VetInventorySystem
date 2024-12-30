@@ -29,11 +29,9 @@ router.post('/', authenticateToken, authorizeRole('Manager'), (req, res) => {
 });
 
 // Search categories
-router.get('/search', (req, res) => {
+router.get('/', (req, res) => {
     const db = req.db;
-    const { q } = req.query;
-
-    db.query('SELECT * FROM Categories WHERE Name LIKE ?', [`%${q}%`], (err, results) => {
+    db.query('SELECT * FROM Categories', (err, results) => {
         if (err) {
             res.status(500).send(err);
         } else {
