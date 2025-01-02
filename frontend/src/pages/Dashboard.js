@@ -1,7 +1,12 @@
 import { useState, useEffect, useContext } from 'react';
-import { getCategories, getSubcategoriesByCategory, getItemsBySubcategory, getVariantsByItem } from '../services/apiService';
+import {
+    getCategories,
+    getSubcategoriesByCategory,
+    getItemsBySubcategory,
+    getVariantsByItem,
+} from '../services/apiService';
 import { AuthContext } from '../AuthContext';
-import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Dashboard = () => {
     const [categories, setCategories] = useState([]);
@@ -10,12 +15,11 @@ const Dashboard = () => {
     const [variants, setVariants] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-    const [newCategoryName, setNewCategoryName] = useState('');
-    const [newItem, setNewItem] = useState({ Name: '', Quantity: 0 });
-    const [error, setError] = useState(null);
-    const { authState } = useContext(AuthContext);
     const [selectedItemId, setSelectedItemId] = useState(null);
-
+    const [showVariants, setShowVariants] = useState(false);
+    const { authState } = useContext(AuthContext);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     // Fetch all categories
     const fetchCategories = async () => {
@@ -23,7 +27,7 @@ const Dashboard = () => {
             const data = await getCategories();
             setCategories(data);
         } catch (err) {
-            setError('Failed to load categories');
+            console.error('Failed to load categories');
         }
     };
 
@@ -33,10 +37,10 @@ const Dashboard = () => {
             const data = await getSubcategoriesByCategory(idCategory);
             setSubcategories(data);
             setSelectedCategory(idCategory);
-            setSelectedSubcategory(null); // Clear subcategory selection
-            setItems([]); // Clear items
+            setSelectedSubcategory(null);
+            setItems([]);
         } catch (err) {
-            setError('Failed to load subcategories. Please try again later.');
+            console.error('Failed to load subcategories');
         }
     };
 
@@ -47,111 +51,66 @@ const Dashboard = () => {
             setItems(data);
             setSelectedSubcategory(subcategoryId);
         } catch (err) {
-            setError('Failed to load items. Please try again later.');
+            console.error('Failed to load items');
         }
     };
 
     // Fetch variants for a selected item
     const fetchVariants = async (itemId) => {
-        setSelectedItemId(itemId); // Set the selected item ID
+        setSelectedItemId(itemId);
         try {
             const data = await getVariantsByItem(itemId);
-            setVariants(data); // Update variants state
+            setVariants(data);
+            setShowVariants(true);
         } catch (err) {
-            console.error('Error fetching variants:', err);
-            setError('Could not fetch variants. Please try again later.');
+            console.error('Failed to fetch variants');
         }
     };
 
-
-    // Add a new category
-    const addCategory = async () => {
-        if (!newCategoryName.trim()) {
-            setError('Category name cannot be empty');
-            return;
-        }
-        try {
-            await axios.post(
-                'http://localhost:5000/categories',
-                { Name: newCategoryName },
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-            );
-            setNewCategoryName('');
-            fetchCategories();
-        } catch (err) {
-            setError('Failed to add category');
-        }
-    };
-
-    // Add a new item
-    const addItem = async () => {
-        if (!newItem.Name.trim() || newItem.Quantity < 0) {
-            setError('Item name cannot be empty and quantity cannot be negative');
-            return;
-        }
-        try {
-            await axios.post(
-                'http://localhost:5000/items',
-                {
-                    Name: newItem.Name,
-                    Quantity: newItem.Quantity,
-                    SubcategoryId: selectedSubcategory,
-                },
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-            );
-            setNewItem({ Name: '', Quantity: 0 });
-            fetchItems(selectedSubcategory);
-        } catch (err) {
-            setError('Failed to add item');
-        }
-    };
-
-    // Delete an item
-    const deleteItem = async (id) => {
-        const confirmDelete = window.confirm('Are you sure you want to delete this item?');
-        if (!confirmDelete) return;
-
-        try {
-            await axios.delete(
-                `http://localhost:5000/items/${id}`,
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-            );
-            fetchItems(selectedSubcategory);
-        } catch (err) {
-            setError('Failed to delete item');
-        }
+    const goBackToItems = () => {
+        setShowVariants(false);
+        setVariants([]);
     };
 
     useEffect(() => {
         fetchCategories();
     }, []);
 
+    const handleEditClick = (type, id, entityData) => {
+        navigate(`/edit/${type}/${id}`, {
+            state: {
+                from: location.pathname,
+                entity: entityData, // Pass the entity data here
+            },
+        });
+    };
+
+
     return (
         <div>
             <h2>Dashboard</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
 
             {/* Categories Section */}
             {!selectedCategory && (
                 <section>
                     <h3>Categories</h3>
-                    {authState.role === 'Manager' && (
-                        <div>
-                            <input
-                                type="text"
-                                placeholder="Enter category name"
-                                value={newCategoryName}
-                                onChange={(e) => setNewCategoryName(e.target.value)}
-                            />
-                            <button onClick={addCategory}>Add Category</button>
-                        </div>
-                    )}
                     <ul>
                         {categories.map((category) => (
                             <li key={category.idCategory}>
                                 <span onClick={() => fetchSubcategories(category.idCategory)}>
                                     {category.Name}
                                 </span>
+                                {authState.role === 'Manager' && (
+                                    <button
+                                        onClick={() =>
+                                            handleEditClick('categories', category.idCategory, {
+                                                Name: category.Name,
+                                            })
+                                        }
+                                    >
+                                        Edit
+                                    </button>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -169,6 +128,17 @@ const Dashboard = () => {
                                 <span onClick={() => fetchItems(subcategory.idSubcategory)}>
                                     {subcategory.Name}
                                 </span>
+                                {authState.role === 'Manager' && (
+                                    <button
+                                        onClick={() =>
+                                            handleEditClick('subcategories', subcategory.idSubcategory, {
+                                                Name: subcategory.Name,
+                                            })
+                                        }
+                                    >
+                                        Edit
+                                    </button>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -176,64 +146,64 @@ const Dashboard = () => {
             )}
 
             {/* Items Section */}
-            {selectedSubcategory && (
+            {selectedSubcategory && !showVariants && (
                 <section>
                     <button onClick={() => setSelectedSubcategory(null)}>Back to Subcategories</button>
                     <h3>Items</h3>
-                    {authState.role === 'Manager' && (
-                        <div>
-                            <input
-                                type="text"
-                                placeholder="Item Name"
-                                value={newItem.Name}
-                                onChange={(e) => setNewItem({ ...newItem, Name: e.target.value })}
-                            />
-                            <input
-                                type="number"
-                                placeholder="Quantity"
-                                value={newItem.Quantity}
-                                onChange={(e) =>
-                                    setNewItem({ ...newItem, Quantity: Number(e.target.value) })
-                                }
-                            />
-                            <button onClick={addItem}>Add Item</button>
-                        </div>
-                    )}
                     <ul>
-                        <ul>
-                            {items.map((item) => (
-                                <li key={item.idItem}>
-                                    <span
-                                        onClick={() => fetchVariants(item.idItem)}
-                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                        {items.map((item) => (
+                            <li key={item.idItem}>
+                                <span
+                                    onClick={() => fetchVariants(item.idItem)}
+                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                >
+                                    {item.Name}
+                                </span>
+                                <span> - {item.Quantity} in stock</span>
+                                {authState.role === 'Manager' && (
+                                    <button
+                                        onClick={() =>
+                                            handleEditClick('items', item.idItem, {
+                                                Name: item.Name,
+                                                Quantity: item.Quantity,
+                                            })
+                                        }
                                     >
-                                        {item.Name}
-                                    </span>
-                                    {!item.hasVariants && <span> - {item.Quantity} in stock</span>}
-                                    {authState.role === 'Manager' && (
-                                        <button onClick={() => deleteItem(item.idItem)}>Delete</button>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    </ul>
-                </section>
-            )}
-
-            {/* Variants Section */}
-            {variants.length > 0 && (
-                <section>
-                    <h3>Variants for {items.find((item) => item.idItem === selectedItemId)?.Name}</h3>
-                    <ul>
-                        {variants.map((variant) => (
-                            <li key={variant.idVariant}>
-                                {variant.Name} - {variant.Quantity} in stock
+                                        Edit
+                                    </button>
+                                )}
                             </li>
                         ))}
                     </ul>
                 </section>
             )}
 
+            {/* Variants Section */}
+            {showVariants && (
+                <section>
+                    <button onClick={goBackToItems}>Back to Items</button>
+                    <h3>Variants for {items.find((item) => item.idItem === selectedItemId)?.Name}</h3>
+                    <ul>
+                        {variants.map((variant) => (
+                            <li key={variant.idVariant}>
+                                {variant.Name} - {variant.Quantity} in stock
+                                {authState.role === 'Manager' && (
+                                    <button
+                                        onClick={() =>
+                                            handleEditClick('variants', variant.idVariant, {
+                                                Name: variant.Name,
+                                                Quantity: variant.Quantity,
+                                            })
+                                        }
+                                    >
+                                        Edit
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
         </div>
     );
 };

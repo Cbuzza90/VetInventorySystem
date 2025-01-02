@@ -3,6 +3,7 @@ import Categories from './pages/Categories';
 import AddItem from './pages/Additem';
 import Login from './pages/Login';
 import CreateAccount from './pages/CreateAccount'; // Import CreateAccount page
+import EditPage from './pages/Edit'; // Import EditPage
 import { AuthProvider, AuthContext } from './AuthContext';
 import { useContext } from 'react';
 import Dashboard from './pages/Dashboard'; // Corrected import
@@ -52,6 +53,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="Manager">
                 <CreateAccount />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/edit/:type/:id"
+            element={
+              <ProtectedRoute requiredRole="Manager">
+                <EditPage />
               </ProtectedRoute>
             }
           />
