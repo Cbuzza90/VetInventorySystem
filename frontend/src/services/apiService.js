@@ -32,7 +32,6 @@ export const getItemsBySubcategory = async (subcategoryId) => {
 };
 
 // Get subcategories by category ID
-// Get subcategories by category ID
 export const getSubcategoriesByCategory = async (idCategory) => {
     console.log(`Calling API: /subcategories/${idCategory}`); // Log API endpoint
     try {
@@ -47,5 +46,18 @@ export const getSubcategoriesByCategory = async (idCategory) => {
         throw new Error('Could not fetch subcategories. Please try again later.');
     }
 };
+
+// Get Varient by Item
+export const getVariantsByItem = async (itemId) => {
+    try {
+        const response = await API.get(`/items/variants/${itemId}`); // Ensure this matches the backend route
+        return response.data;
+    } catch (error) {
+        console.error(`Error fetching variants for item ID ${itemId}:`, error);
+        throw new Error('Could not fetch variants. Please try again later.');
+    }
+};
+
+
 
 

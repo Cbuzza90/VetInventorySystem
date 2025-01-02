@@ -7,10 +7,11 @@ router.post('/', (req, res) => {
     const { Name, Quantity, SubcategoryId } = req.body;
 
     db.query(
-        'INSERT INTO Items (Name, Quantity, SubcategoryId) VALUES (?, ?, ?)',
+        'INSERT INTO Items (Name, Quantity, idSubcategory) VALUES (?, ?, ?)',
         [Name, Quantity, SubcategoryId],
         (err, results) => {
             if (err) {
+                console.error('Error inserting item:', err);
                 res.status(500).send(err);
             } else {
                 res.json({ message: 'Item added successfully!', id: results.insertId });
@@ -30,6 +31,7 @@ router.put('/:id', (req, res) => {
         [Name, Quantity, id],
         (err) => {
             if (err) {
+                console.error('Error updating item:', err);
                 res.status(500).send(err);
             } else {
                 res.json({ message: 'Item updated successfully!' });
@@ -45,6 +47,7 @@ router.delete('/:id', (req, res) => {
 
     db.query('DELETE FROM Items WHERE idItem = ?', [id], (err) => {
         if (err) {
+            console.error('Error deleting item:', err);
             res.status(500).send(err);
         } else {
             res.json({ message: 'Item deleted successfully!' });
@@ -54,9 +57,7 @@ router.delete('/:id', (req, res) => {
 
 // Get items by subcategory ID
 router.get('/:subcategoryId', (req, res) => {
-    console.log('Request received at /items/:subcategoryId');
     console.log('Fetching items for subcategory ID:', req.params.subcategoryId);
-
     const db = req.db;
     const { subcategoryId } = req.params;
 
@@ -78,5 +79,27 @@ router.get('/:subcategoryId', (req, res) => {
     );
 });
 
+// Get variants by item ID
+router.get('/variants/:itemId', (req, res) => {
+    const db = req.db;
+    const { itemId } = req.params;
+
+    db.query(
+        'SELECT * FROM Variants WHERE idItem = ?',
+        [itemId],
+        (err, results) => {
+            if (err) {
+                console.error('Database query error:', err);
+                res.status(500).send(err);
+            } else if (results.length === 0) {
+                console.log(`No variants found for item ID: ${itemId}`);
+                res.status(404).json({ message: 'No variants found for this item.' });
+            } else {
+                console.log(`Variants fetched successfully for item ID ${itemId}:`, results);
+                res.json(results);
+            }
+        }
+    );
+});
 
 module.exports = router;

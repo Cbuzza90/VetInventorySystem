@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { getCategories, getSubcategoriesByCategory, getItemsBySubcategory } from '../services/apiService';
+import { getCategories, getSubcategoriesByCategory, getItemsBySubcategory, getVariantsByItem } from '../services/apiService';
 import { AuthContext } from '../AuthContext';
 import axios from 'axios';
 
@@ -7,13 +7,15 @@ const Dashboard = () => {
     const [categories, setCategories] = useState([]);
     const [subcategories, setSubcategories] = useState([]);
     const [items, setItems] = useState([]);
+    const [variants, setVariants] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newItem, setNewItem] = useState({ Name: '', Quantity: 0 });
-    const [editItem, setEditItem] = useState(null);
     const [error, setError] = useState(null);
     const { authState } = useContext(AuthContext);
+    const [selectedItemId, setSelectedItemId] = useState(null);
+
 
     // Fetch all categories
     const fetchCategories = async () => {
@@ -27,39 +29,39 @@ const Dashboard = () => {
 
     // Fetch subcategories for a selected category
     const fetchSubcategories = async (idCategory) => {
-        console.log(`Fetching subcategories for category ID: ${idCategory}`); // Log category ID
         try {
             const data = await getSubcategoriesByCategory(idCategory);
-            console.log('Subcategories received from API:', data); // Log received data
-            if (!data || data.length === 0) {
-                console.warn(`No subcategories found for category ID: ${idCategory}`); // Warn if empty
-                setError(`No subcategories found for category ID: ${idCategory}`);
-            }
             setSubcategories(data);
             setSelectedCategory(idCategory);
             setSelectedSubcategory(null); // Clear subcategory selection
             setItems([]); // Clear items
         } catch (err) {
-            console.error('Error fetching subcategories:', err); // Log the full error
-            setError('Failed to load subcategories. Please check the console for details.');
+            setError('Failed to load subcategories. Please try again later.');
         }
     };
-
 
     // Fetch items for a selected subcategory
     const fetchItems = async (subcategoryId) => {
-        console.log(`Fetching items for subcategory ID: ${subcategoryId}`); // Log subcategory ID
         try {
             const data = await getItemsBySubcategory(subcategoryId);
-            console.log('Items received from API:', data); // Log API response
             setItems(data);
             setSelectedSubcategory(subcategoryId);
         } catch (err) {
-            console.error('Error fetching items:', err.message); // Log error
-            setError('Failed to load items. Please check the console for details.');
+            setError('Failed to load items. Please try again later.');
         }
     };
 
+    // Fetch variants for a selected item
+    const fetchVariants = async (itemId) => {
+        setSelectedItemId(itemId); // Set the selected item ID
+        try {
+            const data = await getVariantsByItem(itemId);
+            setVariants(data); // Update variants state
+        } catch (err) {
+            console.error('Error fetching variants:', err);
+            setError('Could not fetch variants. Please try again later.');
+        }
+    };
 
 
     // Add a new category
@@ -77,7 +79,7 @@ const Dashboard = () => {
             setNewCategoryName('');
             fetchCategories();
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to add category');
+            setError('Failed to add category');
         }
     };
 
@@ -100,7 +102,7 @@ const Dashboard = () => {
             setNewItem({ Name: '', Quantity: 0 });
             fetchItems(selectedSubcategory);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to add item');
+            setError('Failed to add item');
         }
     };
 
@@ -147,18 +149,12 @@ const Dashboard = () => {
                     <ul>
                         {categories.map((category) => (
                             <li key={category.idCategory}>
-                                <span
-                                    onClick={() => {
-                                        console.log(`Category clicked: ${category.Name}, ID: ${category.idCategory}`); // Log details
-                                        fetchSubcategories(category.idCategory);
-                                    }}
-                                >
+                                <span onClick={() => fetchSubcategories(category.idCategory)}>
                                     {category.Name}
                                 </span>
                             </li>
                         ))}
                     </ul>
-
                 </section>
             )}
 
@@ -204,17 +200,40 @@ const Dashboard = () => {
                         </div>
                     )}
                     <ul>
-                        {items.map((item) => (
-                            <li key={item.idItem}>
-                                {item.Name} - {item.Quantity} in stock
-                                {authState.role === 'Manager' && (
-                                    <button onClick={() => deleteItem(item.idItem)}>Delete</button>
-                                )}
+                        <ul>
+                            {items.map((item) => (
+                                <li key={item.idItem}>
+                                    <span
+                                        onClick={() => fetchVariants(item.idItem)}
+                                        style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                    >
+                                        {item.Name}
+                                    </span>
+                                    {!item.hasVariants && <span> - {item.Quantity} in stock</span>}
+                                    {authState.role === 'Manager' && (
+                                        <button onClick={() => deleteItem(item.idItem)}>Delete</button>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    </ul>
+                </section>
+            )}
+
+            {/* Variants Section */}
+            {variants.length > 0 && (
+                <section>
+                    <h3>Variants for {items.find((item) => item.idItem === selectedItemId)?.Name}</h3>
+                    <ul>
+                        {variants.map((variant) => (
+                            <li key={variant.idVariant}>
+                                {variant.Name} - {variant.Quantity} in stock
                             </li>
                         ))}
                     </ul>
                 </section>
             )}
+
         </div>
     );
 };
