@@ -4,6 +4,8 @@ import {
     getSubcategoriesByCategory,
     getItemsBySubcategory,
     getVariantsByItem,
+    updateItemQuantity,
+    updateVariantQuantity,
 } from '../services/apiService';
 import { AuthContext } from '../AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -17,11 +19,10 @@ const Dashboard = () => {
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [selectedItemId, setSelectedItemId] = useState(null);
     const [showVariants, setShowVariants] = useState(false);
-    const { authState } = useContext(AuthContext);
+    const { authState, logout } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Fetch all categories
     const fetchCategories = async () => {
         try {
             const data = await getCategories();
@@ -31,7 +32,6 @@ const Dashboard = () => {
         }
     };
 
-    // Fetch subcategories for a selected category
     const fetchSubcategories = async (idCategory) => {
         try {
             const data = await getSubcategoriesByCategory(idCategory);
@@ -44,7 +44,6 @@ const Dashboard = () => {
         }
     };
 
-    // Fetch items for a selected subcategory
     const fetchItems = async (subcategoryId) => {
         try {
             const data = await getItemsBySubcategory(subcategoryId);
@@ -55,7 +54,6 @@ const Dashboard = () => {
         }
     };
 
-    // Fetch variants for a selected item
     const fetchVariants = async (itemId) => {
         setSelectedItemId(itemId);
         try {
@@ -80,40 +78,110 @@ const Dashboard = () => {
         navigate(`/edit/${type}/${id}`, {
             state: {
                 from: location.pathname,
-                entity: entityData, // Pass the entity data here
+                entity: entityData,
             },
         });
     };
 
+    const handleQuantityChange = async (type, id, increment) => {
+        try {
+            if (type === 'item') {
+                const updatedItem = await updateItemQuantity(id, increment);
+                setItems((prevItems) =>
+                    prevItems.map((item) =>
+                        item.idItem === id
+                            ? { ...item, Quantity: updatedItem.Quantity }
+                            : item
+                    )
+                );
+            } else if (type === 'variant') {
+                const updatedVariant = await updateVariantQuantity(id, increment);
+                setVariants((prevVariants) =>
+                    prevVariants.map((variant) =>
+                        variant.idVariant === id
+                            ? { ...variant, Quantity: updatedVariant.Quantity }
+                            : variant
+                    )
+                );
+            }
+        } catch (err) {
+            console.error('Failed to update quantity:', err);
+        }
+    };
+
+    const handleLogout = () => {
+        logout(); // Clears token and authentication state
+        navigate('/login'); // Redirects to the login page
+    };
 
     return (
         <div>
             <h2>Dashboard</h2>
 
+            {/* Logout Button */}
+            <button
+                onClick={handleLogout}
+                style={{
+                    marginBottom: '20px',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    padding: '10px',
+                }}
+            >
+                Logout
+            </button>
+
+            {authState.role === 'Manager' && (
+                <button
+                    onClick={() => navigate('/EditAccounts')}
+                    style={{
+                        marginBottom: '20px',
+                        backgroundColor: '#2196F3',
+                        color: 'white',
+                        padding: '10px',
+                    }}
+                >
+                    Edit Accounts
+                </button>
+            )}
+
+            {/* Add Item Button */}
+            {authState.role === 'Manager' && (
+                <button
+                    onClick={() => navigate('/categories/1/add-item', { state: { from: location.pathname } })} // Replace `1` with the actual category ID
+                    style={{
+                        marginBottom: '20px',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        padding: '10px',
+                    }}
+                >
+                    Add Item
+                </button>
+            )}
+
             {/* Categories Section */}
             {!selectedCategory && (
                 <section>
                     <h3>Categories</h3>
-                    <ul>
-                        {categories.map((category) => (
-                            <li key={category.idCategory}>
-                                <span onClick={() => fetchSubcategories(category.idCategory)}>
-                                    {category.Name}
-                                </span>
-                                {authState.role === 'Manager' && (
-                                    <button
-                                        onClick={() =>
-                                            handleEditClick('categories', category.idCategory, {
-                                                Name: category.Name,
-                                            })
-                                        }
-                                    >
-                                        Edit
-                                    </button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                    {categories.map((category) => (
+                        <div key={category.idCategory} className="dashboard-item">
+                            <span onClick={() => fetchSubcategories(category.idCategory)}>
+                                {category.Name}
+                            </span>
+                            {authState.role === 'Manager' && (
+                                <button
+                                    onClick={() =>
+                                        handleEditClick('categories', category.idCategory, {
+                                            Name: category.Name,
+                                        })
+                                    }
+                                >
+                                    Edit
+                                </button>
+                            )}
+                        </div>
+                    ))}
                 </section>
             )}
 
@@ -122,26 +190,24 @@ const Dashboard = () => {
                 <section>
                     <button onClick={() => setSelectedCategory(null)}>Back to Categories</button>
                     <h3>Subcategories</h3>
-                    <ul>
-                        {subcategories.map((subcategory) => (
-                            <li key={subcategory.idSubcategory}>
-                                <span onClick={() => fetchItems(subcategory.idSubcategory)}>
-                                    {subcategory.Name}
-                                </span>
-                                {authState.role === 'Manager' && (
-                                    <button
-                                        onClick={() =>
-                                            handleEditClick('subcategories', subcategory.idSubcategory, {
-                                                Name: subcategory.Name,
-                                            })
-                                        }
-                                    >
-                                        Edit
-                                    </button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                    {subcategories.map((subcategory) => (
+                        <div key={subcategory.idSubcategory} className="dashboard-item">
+                            <span onClick={() => fetchItems(subcategory.idSubcategory)}>
+                                {subcategory.Name}
+                            </span>
+                            {authState.role === 'Manager' && (
+                                <button
+                                    onClick={() =>
+                                        handleEditClick('subcategories', subcategory.idSubcategory, {
+                                            Name: subcategory.Name,
+                                        })
+                                    }
+                                >
+                                    Edit
+                                </button>
+                            )}
+                        </div>
+                    ))}
                 </section>
             )}
 
@@ -150,31 +216,43 @@ const Dashboard = () => {
                 <section>
                     <button onClick={() => setSelectedSubcategory(null)}>Back to Subcategories</button>
                     <h3>Items</h3>
-                    <ul>
-                        {items.map((item) => (
-                            <li key={item.idItem}>
+                    {items.map((item) => (
+                        <div key={item.idItem} className="dashboard-item">
+                            {item.hasVariants ? (
                                 <span
                                     onClick={() => fetchVariants(item.idItem)}
                                     style={{ cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                     {item.Name}
                                 </span>
-                                <span> - {item.Quantity} in stock</span>
-                                {authState.role === 'Manager' && (
-                                    <button
-                                        onClick={() =>
-                                            handleEditClick('items', item.idItem, {
-                                                Name: item.Name,
-                                                Quantity: item.Quantity,
-                                            })
-                                        }
-                                    >
-                                        Edit
+                            ) : (
+                                <span>{item.Name}</span>
+                            )}
+                            {!item.hasVariants && (
+                                <>
+                                    <button onClick={() => handleQuantityChange('item', item.idItem, -1)}>
+                                        -
                                     </button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                                    <span>{item.Quantity}</span>
+                                    <button onClick={() => handleQuantityChange('item', item.idItem, 1)}>
+                                        +
+                                    </button>
+                                </>
+                            )}
+                            {authState.role === 'Manager' && (
+                                <button
+                                    onClick={() =>
+                                        handleEditClick('items', item.idItem, {
+                                            Name: item.Name,
+                                            Quantity: item.Quantity,
+                                        })
+                                    }
+                                >
+                                    Edit
+                                </button>
+                            )}
+                        </div>
+                    ))}
                 </section>
             )}
 
@@ -183,25 +261,30 @@ const Dashboard = () => {
                 <section>
                     <button onClick={goBackToItems}>Back to Items</button>
                     <h3>Variants for {items.find((item) => item.idItem === selectedItemId)?.Name}</h3>
-                    <ul>
-                        {variants.map((variant) => (
-                            <li key={variant.idVariant}>
-                                {variant.Name} - {variant.Quantity} in stock
-                                {authState.role === 'Manager' && (
-                                    <button
-                                        onClick={() =>
-                                            handleEditClick('variants', variant.idVariant, {
-                                                Name: variant.Name,
-                                                Quantity: variant.Quantity,
-                                            })
-                                        }
-                                    >
-                                        Edit
-                                    </button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                    {variants.map((variant) => (
+                        <div key={variant.idVariant} className="dashboard-item">
+                            <span>{variant.Name}</span>
+                            <button onClick={() => handleQuantityChange('variant', variant.idVariant, -1)}>
+                                -
+                            </button>
+                            <span>{variant.Quantity}</span>
+                            <button onClick={() => handleQuantityChange('variant', variant.idVariant, 1)}>
+                                +
+                            </button>
+                            {authState.role === 'Manager' && (
+                                <button
+                                    onClick={() =>
+                                        handleEditClick('variants', variant.idVariant, {
+                                            Name: variant.Name,
+                                            Quantity: variant.Quantity,
+                                        })
+                                    }
+                                >
+                                    Edit
+                                </button>
+                            )}
+                        </div>
+                    ))}
                 </section>
             )}
         </div>

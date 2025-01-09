@@ -10,14 +10,16 @@ const Login = () => {
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
 
+
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:5000/login', {
+            const response = await axios.post('http://192.168.2.158:5000/auth/login', {
                 Username: username,
                 Password: password,
             });
-            login(response.data.token); // Use context login method
+            login(response.data.token, response.data.role);
+            // Use context login method
             navigate('/'); // Redirect based on role handled by RedirectBasedOnRole
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed. Please try again.');

@@ -7,6 +7,9 @@ const Edit = () => {
     const location = useLocation();
     const { entity } = location.state || {};
 
+    console.log('Edit route params:', type, id);
+    console.log('Edit route state:', entity);
+
     const [formData, setFormData] = useState({
         Name: entity?.Name || '',
         Quantity: entity?.Quantity || 0,
@@ -50,6 +53,18 @@ const Edit = () => {
         }
     };
 
+    const handleDelete = async () => {
+        try {
+            await axios.delete(`http://localhost:5000/${type}/${id}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            });
+            navigate(location.state?.from || '/'); // Navigate back to the originating page
+        } catch (err) {
+            console.error('Error deleting entity:', err);
+            setError('Failed to delete the entity. Please try again later.');
+        }
+    };
+
     return (
         <div>
             <h2>Edit {type.slice(0, -1)}</h2>
@@ -81,6 +96,13 @@ const Edit = () => {
                 </button>
                 <button type="button" onClick={() => navigate(location.state?.from || '/')}>
                     Cancel
+                </button>
+                <button
+                    type="button"
+                    onClick={handleDelete}
+                    style={{ backgroundColor: 'red', color: 'white' }}
+                >
+                    Delete
                 </button>
             </form>
         </div>

@@ -2,13 +2,13 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import Categories from './pages/Categories';
 import AddItem from './pages/Additem';
 import Login from './pages/Login';
-import CreateAccount from './pages/CreateAccount'; // Import CreateAccount page
-import EditPage from './pages/Edit'; // Import EditPage
+import CreateAccount from './pages/CreateAccount';
+import EditPage from './pages/Edit';
+import EditAccounts from './pages/EditAccounts'; // Import EditAccounts component
 import { AuthProvider, AuthContext } from './AuthContext';
 import { useContext } from 'react';
-import Dashboard from './pages/Dashboard'; // Corrected import
+import Dashboard from './pages/Dashboard';
 
-// Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { authState } = useContext(AuthContext);
 
@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   if (requiredRole && authState.role !== requiredRole) {
-    return <Navigate to="/" />; // Redirect to dashboard for unauthorized roles
+    return <Navigate to="/" />;
   }
 
   return children;
@@ -28,10 +28,8 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Route */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Routes */}
           <Route
             path="/"
             element={
@@ -61,6 +59,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="Manager">
                 <EditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/EditAccounts"
+            element={
+              <ProtectedRoute requiredRole="Manager">
+                <EditAccounts />
               </ProtectedRoute>
             }
           />

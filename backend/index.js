@@ -1,8 +1,15 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const mysql = require('mysql2');
+const db = require('./db'); // Import the centralized database connection
 require('dotenv').config();
+
+const userRoutes = require('./routes/userRoutes');
+const categoryRoutes = require('./routes/categories');
+const subcategoriesRoutes = require('./routes/subcategories');
+const itemRoutes = require('./routes/items');
+const authRoutes = require('./routes/authRoutes');
+const variantRoutes = require('./routes/variants');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -11,47 +18,31 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Database Connection
-const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-});
-
-
-db.connect((err) => {
-    if (err) {
-        console.error('Error connecting to the database:', err);
-        process.exit(1); // Stop the server if the database connection fails
-    } else {
-        console.log('Connected to the database');
-    }
-});
-
-// Make the database accessible to all routes
+// Attach the database connection to requests
 app.use((req, res, next) => {
-    if (!db) {
-        console.error('Database connection not initialized!');
-        return res.status(500).json({ message: 'Internal server error: database connection missing' });
-    }
     req.db = db;
     next();
 });
 
-// Import Routes
-const categoryRoutes = require('./routes/categories');
-const subcategoriesRoutes = require('./routes/subcategories'); // Moved after db middleware
-const itemRoutes = require('./routes/items');
-const authRoutes = require('./routes/authRoutes');
-
-// Use Routes
+// Routes
 app.use('/categories', categoryRoutes);
 app.use('/subcategories', subcategoriesRoutes);
 app.use('/items', itemRoutes);
-app.use('/', authRoutes);
+app.use('/auth', authRoutes);
+app.use('/variants', variantRoutes);
+app.use('/users', userRoutes);
 
-// Start the Server
-app.listen(PORT, () => {
+// Default route
+app.get('/', (req, res) => {
+    res.send('Welcome to the Backend API!');
+});
+
+// Handle 404 errors for undefined routes
+app.use((req, res) => {
+    res.status(404).send('Route not found');
+});
+
+// Start the server
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

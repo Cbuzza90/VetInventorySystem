@@ -20,18 +20,28 @@ router.post('/', authenticateToken, authorizeRole('Manager'), (req, res) => {
     const db = req.db;
     const { Name, idCategory } = req.body;
 
+    console.log('Request Body:', req.body); // Log the incoming request
+
+    // Validate input
+    if (!Name || !idCategory) {
+        return res.status(400).json({ message: 'Name and idCategory are required' });
+    }
+
     db.query(
         'INSERT INTO Subcategories (Name, idCategory) VALUES (?, ?)',
-        [Name, idCategory],
+        [Name.trim(), idCategory],
         (err, results) => {
             if (err) {
+                console.error('Database Error:', err); // Log database error
                 res.status(500).json({ message: 'Database error', error: err });
             } else {
-                res.json({ message: 'Subcategory added successfully!', id: results.insertId });
+                console.log('Subcategory added with ID:', results.insertId); // Log success
+                res.status(201).json({ message: 'Subcategory added successfully!', id: results.insertId });
             }
         }
     );
 });
+
 
 // Get subcategories by category ID
 router.get('/:idCategory', (req, res) => {
