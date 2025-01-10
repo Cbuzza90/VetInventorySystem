@@ -164,3 +164,32 @@ router.put('/:id/quantity', authenticateToken, authorizeRole('Manager'), (req, r
 });
 
 module.exports = router;
+
+
+
+// Get all items
+router.get('/', (req, res) => {
+    const db = req.db;
+
+    const query = `
+        SELECT 
+            i.idItem, 
+            i.Name, 
+            i.Quantity, 
+            i.idSubcategory, 
+            CASE 
+                WHEN EXISTS (SELECT 1 FROM Variants v WHERE v.idItem = i.idItem) THEN 1 
+                ELSE 0 
+            END AS hasVariants
+        FROM Items i;
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Database error:', err);
+            res.status(500).send('Database error');
+        } else {
+            res.json(results);
+        }
+    });
+});

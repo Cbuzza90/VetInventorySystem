@@ -81,3 +81,14 @@ export const updateVariantQuantity = async (id, increment) => {
     });
     return response.data; // The updated variant data
 };
+
+// get all items in search
+export const getAllItems = async () => {
+    try {
+        const response = await API.get('/items'); // Correctly match the backend route
+        return response.data;
+    } catch (err) {
+        console.error('Error fetching all items:', err);
+        throw new Error('Could not fetch all items. Please try again later.');
+    }
+};

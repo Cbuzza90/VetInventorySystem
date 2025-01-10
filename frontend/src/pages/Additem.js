@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import API from '../services/apiService';
 
 const AddItem = () => {
@@ -17,7 +17,11 @@ const AddItem = () => {
     const [subcategories, setSubcategories] = useState([]);
     const [items, setItems] = useState([]);
     const navigate = useNavigate();
-    const location = useLocation();
+
+    // Navigate back to dashboard
+    const handleBackToDashboard = () => {
+        navigate('/'); // Replace '/dashboard' with your actual dashboard route
+    };
 
     // Fetch categories on load
     useEffect(() => {
@@ -119,27 +123,27 @@ const AddItem = () => {
             } else if (type === 'item') {
                 const payload = {
                     Name: formData.name,
-                    Quantity: formData.hasVariants ? 0 : formData.quantity, // Ignore quantity if variants are present
+                    Quantity: formData.hasVariants ? 0 : formData.quantity,
                     idSubcategory: formData.subcategoryId,
                     hasVariants: formData.hasVariants,
                     variants: formData.hasVariants ? formData.variants : [],
                 };
-                console.log("Payload to be sent:", payload);
-                console.log("Variants array:", payload.variants);
+                console.log('Payload to be sent:', payload);
+                console.log('Variants array:', payload.variants);
                 await API.post('/items', payload);
             } else if (type === 'variant') {
                 const payload = {
-                    name: formData.name, // Ensure proper key name
-                    quantity: formData.quantity, // Ensure quantity is included
-                    idItem: formData.itemId, // Ensure this links to the correct item
+                    name: formData.name,
+                    quantity: formData.quantity,
+                    idItem: formData.itemId,
                 };
 
-                console.log("Payload for variant:", payload);
+                console.log('Payload for variant:', payload);
 
                 await API.post('/variants', payload);
             }
 
-            navigate(location.state?.from || '/');
+            navigate('/'); // Redirect to dashboard after saving
         } catch (err) {
             console.error('Error adding entity:', err);
         }
@@ -147,6 +151,11 @@ const AddItem = () => {
 
     return (
         <div>
+            {/* Back to Dashboard Button */}
+            <button onClick={handleBackToDashboard} style={{ marginBottom: '20px' }}>
+                Back to Dashboard
+            </button>
+
             <h2>Add Item</h2>
             {!type && (
                 <div>
@@ -215,7 +224,7 @@ const AddItem = () => {
                                     value={formData.quantity}
                                     onChange={handleInputChange}
                                     required
-                                    disabled={formData.hasVariants} // Disable if hasVariants is true
+                                    disabled={formData.hasVariants}
                                 />
                             </div>
                             <div>
