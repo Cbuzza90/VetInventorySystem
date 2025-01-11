@@ -67,21 +67,24 @@ const Dashboard = () => {
         setSearchQuery(query);
 
         if (!query.trim()) {
-            setFilteredItems([]);
+            setFilteredItems([]); // Clear filtered items if search query is empty
             return;
         }
 
-        const dataset = searchType === 'categories'
-            ? categories
-            : searchType === 'subcategories'
-                ? subcategories
-                : items;
+        const dataset =
+            searchType === 'categories'
+                ? categories
+                : searchType === 'subcategories'
+                    ? subcategories
+                    : items;
 
         const results = dataset.filter((entry) =>
             entry.Name.toLowerCase().includes(query)
         );
         setFilteredItems(results);
     };
+
+
 
     const handleDropdownChange = (e) => {
         const newSearchType = e.target.value;
@@ -93,6 +96,7 @@ const Dashboard = () => {
         else if (newSearchType === 'subcategories' && selectedCategory) fetchSubcategories(selectedCategory);
         else if (newSearchType === 'categories') fetchCategories();
     };
+
 
     const handleQuantityChange = async (id, increment) => {
         try {
@@ -200,7 +204,7 @@ const Dashboard = () => {
                 <section>
                     <h3>Categories</h3>
                     {categories.map((category) => (
-                        <div key={category.idCategory}>
+                        <div key={`category-${category.idCategory}`}>
                             <span onClick={() => handleCategoryClick(category.idCategory)}>
                                 {category.Name}
                             </span>
@@ -209,12 +213,13 @@ const Dashboard = () => {
                 </section>
             )}
 
+
             {!searchQuery && selectedCategory && !selectedSubcategory && (
                 <section>
                     <button onClick={handleBackToCategories}>Back to Categories</button>
                     <h3>Subcategories</h3>
                     {subcategories.map((subcategory) => (
-                        <div key={subcategory.idSubcategory}>
+                        <div key={`subcategory-${subcategory.idSubcategory}`}>
                             <span onClick={() => handleSubcategoryClick(subcategory.idSubcategory)}>
                                 {subcategory.Name}
                             </span>
@@ -223,12 +228,13 @@ const Dashboard = () => {
                 </section>
             )}
 
+
             {!searchQuery && selectedSubcategory && (
                 <section>
                     <button onClick={handleBackToSubcategories}>Back to Subcategories</button>
                     <h3>Items</h3>
                     {items.map((item) => (
-                        <div key={item.idItem}>
+                        <div key={`item-${item.idItem}`}>
                             <span>{item.Name}</span>
                             <button onClick={() => handleQuantityChange(item.idItem, -1)}>
                                 -
@@ -242,14 +248,41 @@ const Dashboard = () => {
                 </section>
             )}
 
-            {searchQuery && (
+            {searchQuery && filteredItems.length > 0 && (
                 <section>
                     <h3>Search Results</h3>
-                    {filteredItems.map((item) => (
-                        <div key={item.idCategory || item.idSubcategory || item.idItem}>
-                            <span>{item.Name}</span>
-                        </div>
-                    ))}
+                    {filteredItems.map((item) => {
+                        const uniqueKey = `${searchType}-${item.idSubcategory || ''}-${item.idItem}`;
+
+                        const onClickHandler =
+                            searchType === 'categories'
+                                ? () => handleCategoryClick(item.idCategory)
+                                : searchType === 'subcategories'
+                                    ? () => handleSubcategoryClick(item.idSubcategory)
+                                    : null;
+
+                        return (
+                            <div
+                                key={uniqueKey}
+                                onClick={onClickHandler}
+                                style={{
+                                    cursor: onClickHandler ? 'pointer' : 'default',
+                                    textDecoration: onClickHandler ? 'underline' : 'none',
+                                }}
+                            >
+                                <span>{item.Name}</span>
+                            </div>
+                        );
+                    })}
+
+
+
+                </section>
+            )}
+
+            {searchQuery && filteredItems.length === 0 && (
+                <section>
+                    <h3>No Results Found</h3>
                 </section>
             )}
         </div>
