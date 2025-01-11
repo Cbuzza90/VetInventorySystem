@@ -35,7 +35,6 @@ const Dashboard = () => {
         try {
             const data = await getAllItems();
             setItems(data);
-            setFilteredItems(data);
         } catch (err) {
             console.error('Failed to load items globally');
         }
@@ -48,7 +47,6 @@ const Dashboard = () => {
             setSelectedCategory(idCategory);
             setSelectedSubcategory(null);
             setItems([]);
-            setFilteredItems([]);
         } catch (err) {
             console.error('Failed to load subcategories');
         }
@@ -57,39 +55,43 @@ const Dashboard = () => {
     const fetchItems = async (subcategoryId) => {
         try {
             const data = await getItemsBySubcategory(subcategoryId);
-            if (!Array.isArray(data)) {
-                console.error('Invalid response data for subcategory items:', data);
-                setItems([]);
-                setFilteredItems([]);
-                return;
-            }
             setItems(data);
-            setFilteredItems(data);
             setSelectedSubcategory(subcategoryId);
         } catch (err) {
             console.error('Failed to load items:', err.message);
-            setItems([]);
-            setFilteredItems([]);
         }
     };
 
     const handleSearchChange = (e) => {
-        setSearchQuery(e.target.value.toLowerCase());
+        const query = e.target.value.toLowerCase();
+        setSearchQuery(query);
+
+        if (!query.trim()) {
+            setFilteredItems([]);
+            return;
+        }
+
+        const dataset = searchType === 'categories'
+            ? categories
+            : searchType === 'subcategories'
+                ? subcategories
+                : items;
+
+        const results = dataset.filter((entry) =>
+            entry.Name.toLowerCase().includes(query)
+        );
+        setFilteredItems(results);
     };
 
     const handleDropdownChange = (e) => {
-        setSearchType(e.target.value);
-        setSearchQuery(''); // Clear search query when type changes
-        setFilteredItems([]); // Clear filtered results
-    };
+        const newSearchType = e.target.value;
+        setSearchType(newSearchType);
+        setSearchQuery('');
+        setFilteredItems([]);
 
-    const handleEditClick = (type, id, entityData) => {
-        navigate(`/edit/${type}/${id}`, {
-            state: {
-                from: location.pathname,
-                entity: entityData,
-            },
-        });
+        if (newSearchType === 'items') fetchAllItems();
+        else if (newSearchType === 'subcategories' && selectedCategory) fetchSubcategories(selectedCategory);
+        else if (newSearchType === 'categories') fetchCategories();
     };
 
     const handleQuantityChange = async (id, increment) => {
@@ -102,19 +104,13 @@ const Dashboard = () => {
                         : item
                 )
             );
-            setFilteredItems((prevItems) =>
-                prevItems.map((item) =>
-                    item.idItem === id
-                        ? { ...item, Quantity: updatedItem.Quantity }
-                        : item
-                )
-            );
         } catch (err) {
             console.error('Failed to update quantity:', err);
         }
     };
 
     const handleLogout = () => {
+        clearState(true, true);
         logout();
         navigate('/login');
     };
@@ -127,14 +123,37 @@ const Dashboard = () => {
     };
 
     const handleSubcategoryClick = (idSubcategory) => {
-        if (!idSubcategory) {
-            console.error('Invalid subcategory ID:', idSubcategory);
-            return;
-        }
         fetchItems(idSubcategory);
         setSearchQuery('');
         setFilteredItems([]);
         setSearchType('items');
+    };
+
+    const handleBackToCategories = () => {
+        setSelectedCategory(null);
+        setSubcategories([]);
+        setItems([]);
+        fetchCategories();
+        setSearchQuery('');
+        setFilteredItems([]);
+        setSearchType('categories');
+    };
+
+    const handleBackToSubcategories = () => {
+        setSelectedSubcategory(null);
+        setItems([]);
+        fetchSubcategories(selectedCategory);
+        setSearchQuery('');
+        setFilteredItems([]);
+        setSearchType('items');
+    };
+
+    const clearState = (resetCategory = false, resetSubcategory = false) => {
+        setFilteredItems([]);
+        setSearchQuery('');
+        setSearchType('items');
+        if (resetCategory) setSelectedCategory(null);
+        if (resetSubcategory) setSelectedSubcategory(null);
     };
 
     useEffect(() => {
@@ -142,95 +161,29 @@ const Dashboard = () => {
         fetchAllItems();
     }, []);
 
-    useEffect(() => {
-        if (!searchQuery.trim()) {
-            setFilteredItems([]);
-            return;
-        }
-
-        const dataMap = {
-            categories: categories,
-            subcategories: subcategories,
-            items: items,
-        };
-
-        const dataSource = dataMap[searchType] || [];
-
-        const filteredData = dataSource.filter((entry) =>
-            entry.Name.toLowerCase().includes(searchQuery)
-        );
-
-        setFilteredItems(filteredData);
-    }, [searchQuery, searchType, categories, subcategories, items]);
-
     return (
         <div>
-            {/* Logout Button */}
-            <button
-                onClick={handleLogout}
-                style={{
-                    marginBottom: '20px',
-                    backgroundColor: '#f44336',
-                    color: 'white',
-                    padding: '10px',
-                }}
-            >
-                Logout
-            </button>
+            <button onClick={handleLogout}>Logout</button>
+            <button onClick={() => clearState(true, true)}>Reset View</button>
 
-            {/* Manage Accounts Button */}
             {authState.role === 'Manager' && (
-                <button
-                    onClick={() => navigate('/EditAccounts')}
-                    style={{
-                        marginBottom: '20px',
-                        backgroundColor: '#2196F3',
-                        color: 'white',
-                        padding: '10px',
-                    }}
-                >
-                    Manage Accounts
-                </button>
+                <button onClick={() => navigate('/EditAccounts')}>Manage Accounts</button>
             )}
 
-            {/* Add Item Button */}
             {authState.role === 'Manager' && (
                 <button
                     onClick={() =>
-                        navigate(`/categories/${selectedCategory || 1}/add-item`, {
+                        navigate(`/categories/${selectedCategory}/add-item`, {
                             state: { from: location.pathname },
                         })
                     }
-                    style={{
-                        marginBottom: '20px',
-                        backgroundColor: '#4CAF50',
-                        color: 'white',
-                        padding: '10px',
-                    }}
                 >
                     Add Item
                 </button>
             )}
 
-            {/* Search Bar with Dropdown */}
-            <div
-                style={{
-                    marginBottom: '20px',
-                    display: 'flex',
-                    gap: '10px',
-                    alignItems: 'center',
-                }}
-            >
-                <select
-                    value={searchType}
-                    onChange={handleDropdownChange}
-                    style={{
-                        padding: '10px',
-                        fontSize: '16px',
-                        border: '1px solid #ccc',
-                        borderRadius: '5px',
-                    }}
-                >
+            <div>
+                <select value={searchType} onChange={handleDropdownChange}>
                     <option value="categories">Categories</option>
                     <option value="subcategories">Subcategories</option>
                     <option value="items">Items</option>
@@ -240,184 +193,61 @@ const Dashboard = () => {
                     value={searchQuery}
                     onChange={handleSearchChange}
                     placeholder={`Search ${searchType}...`}
-                    style={{
-                        width: '100%',
-                        padding: '10px',
-                        fontSize: '16px',
-                        border: '1px solid #ccc',
-                        borderRadius: '5px',
-                    }}
                 />
             </div>
 
-            {/* Search Results */}
-            {searchQuery && (
-                <section>
-                    <h3>{searchType.charAt(0).toUpperCase() + searchType.slice(1)} Results</h3>
-                    {filteredItems.length > 0 ? (
-                        filteredItems.map((item) => {
-                            if (searchType === 'categories') {
-                                return (
-                                    <div key={item.idCategory} className="dashboard-item">
-                                        <span
-                                            onClick={() => handleCategoryClick(item.idCategory)}
-                                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                        >
-                                            {item.Name}
-                                        </span>
-                                        {authState.role === 'Manager' && (
-                                            <button
-                                                onClick={() =>
-                                                    handleEditClick('categories', item.idCategory, {
-                                                        Name: item.Name,
-                                                    })
-                                                }
-                                            >
-                                                Edit
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            } else if (searchType === 'subcategories') {
-                                return (
-                                    <div key={item.idSubcategory} className="dashboard-item">
-                                        <span
-                                            onClick={() => handleSubcategoryClick(item.idSubcategory)}
-                                            style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                        >
-                                            {item.Name}
-                                        </span>
-                                        {authState.role === 'Manager' && (
-                                            <button
-                                                onClick={() =>
-                                                    handleEditClick('subcategories', item.idSubcategory, {
-                                                        Name: item.Name,
-                                                    })
-                                                }
-                                            >
-                                                Edit
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            } else if (searchType === 'items') {
-                                return (
-                                    <div key={item.idItem} className="dashboard-item">
-                                        <span>{item.Name}</span>
-                                        <button
-                                            onClick={() => handleQuantityChange(item.idItem, -1)}
-                                        >
-                                            -
-                                        </button>
-                                        <span>{item.Quantity}</span>
-                                        <button
-                                            onClick={() => handleQuantityChange(item.idItem, 1)}
-                                        >
-                                            +
-                                        </button>
-                                        {authState.role === 'Manager' && (
-                                            <button
-                                                onClick={() =>
-                                                    handleEditClick('items', item.idItem, {
-                                                        Name: item.Name,
-                                                        Quantity: item.Quantity,
-                                                    })
-                                                }
-                                            >
-                                                Edit
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            }
-                            return null;
-                        })
-                    ) : (
-                        <p>No {searchType} found.</p>
-                    )}
-                </section>
-            )}
-
-            {/* Categories Section */}
             {!searchQuery && !selectedCategory && (
                 <section>
                     <h3>Categories</h3>
                     {categories.map((category) => (
-                        <div key={category.idCategory} className="dashboard-item">
-                            <span
-                                onClick={() => handleCategoryClick(category.idCategory)}
-                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                            >
+                        <div key={category.idCategory}>
+                            <span onClick={() => handleCategoryClick(category.idCategory)}>
                                 {category.Name}
                             </span>
-                            {authState.role === 'Manager' && (
-                                <button
-                                    onClick={() =>
-                                        handleEditClick('categories', category.idCategory, {
-                                            Name: category.Name,
-                                        })
-                                    }
-                                >
-                                    Edit
-                                </button>
-                            )}
                         </div>
                     ))}
                 </section>
             )}
 
-            {/* Subcategories Section */}
             {!searchQuery && selectedCategory && !selectedSubcategory && (
                 <section>
-                    <button onClick={() => setSelectedCategory(null)}>Back to Categories</button>
+                    <button onClick={handleBackToCategories}>Back to Categories</button>
                     <h3>Subcategories</h3>
                     {subcategories.map((subcategory) => (
-                        <div key={subcategory.idSubcategory} className="dashboard-item">
-                            <span
-                                onClick={() => handleSubcategoryClick(subcategory.idSubcategory)}
-                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                            >
+                        <div key={subcategory.idSubcategory}>
+                            <span onClick={() => handleSubcategoryClick(subcategory.idSubcategory)}>
                                 {subcategory.Name}
                             </span>
-                            {authState.role === 'Manager' && (
-                                <button
-                                    onClick={() =>
-                                        handleEditClick('subcategories', subcategory.idSubcategory, {
-                                            Name: subcategory.Name,
-                                        })
-                                    }
-                                >
-                                    Edit
-                                </button>
-                            )}
                         </div>
                     ))}
                 </section>
             )}
 
-            {/* Items Section */}
             {!searchQuery && selectedSubcategory && (
                 <section>
-                    <button onClick={() => setSelectedSubcategory(null)}>Back to Subcategories</button>
+                    <button onClick={handleBackToSubcategories}>Back to Subcategories</button>
                     <h3>Items</h3>
                     {items.map((item) => (
-                        <div key={item.idItem} className="dashboard-item">
+                        <div key={item.idItem}>
                             <span>{item.Name}</span>
-                            <button onClick={() => handleQuantityChange(item.idItem, -1)}>-</button>
+                            <button onClick={() => handleQuantityChange(item.idItem, -1)}>
+                                -
+                            </button>
                             <span>{item.Quantity}</span>
-                            <button onClick={() => handleQuantityChange(item.idItem, 1)}>+</button>
-                            {authState.role === 'Manager' && (
-                                <button
-                                    onClick={() =>
-                                        handleEditClick('items', item.idItem, {
-                                            Name: item.Name,
-                                            Quantity: item.Quantity,
-                                        })
-                                    }
-                                >
-                                    Edit
-                                </button>
-                            )}
+                            <button onClick={() => handleQuantityChange(item.idItem, 1)}>
+                                +
+                            </button>
+                        </div>
+                    ))}
+                </section>
+            )}
+
+            {searchQuery && (
+                <section>
+                    <h3>Search Results</h3>
+                    {filteredItems.map((item) => (
+                        <div key={item.idCategory || item.idSubcategory || item.idItem}>
+                            <span>{item.Name}</span>
                         </div>
                     ))}
                 </section>
