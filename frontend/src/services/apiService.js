@@ -34,12 +34,13 @@ export const getCategories = async () => {
 export const getItemsBySubcategory = async (subcategoryId) => {
     try {
         const response = await API.get(`/items/${subcategoryId}`);
-        return response.data; // This now includes the `hasVariants` property
+        return response.data;
     } catch (error) {
-        console.error(`Error fetching items for subcategory ID ${subcategoryId}:`, error.message);
-        throw new Error('Could not fetch items. Please try again later.');
+        console.error(`Error fetching items for subcategory ID ${subcategoryId}:`, error.response?.data || error.message);
+        throw new Error(`Could not fetch items for subcategory ID ${subcategoryId}. Please check the backend or data.`);
     }
 };
+
 
 // Get subcategories by category ID
 export const getSubcategoriesByCategory = async (idCategory) => {

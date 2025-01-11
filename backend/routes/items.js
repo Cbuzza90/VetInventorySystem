@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, authorizeRole } = require('../middlewares/authMiddleware'); // Add this line
-
+const { authenticateToken, authorizeRole } = require('../middlewares/authMiddleware');
 
 // Add a new item
 router.post('/', (req, res) => {
     const db = req.db;
-    const { Name, Quantity, idSubcategory, hasVariants, variants } = req.body;
+    const { Name, Quantity, idSubcategory } = req.body;
 
     db.query(
         'INSERT INTO Items (Name, Quantity, idSubcategory) VALUES (?, ?, ?)',
@@ -17,38 +16,10 @@ router.post('/', (req, res) => {
                 return res.status(500).send(err);
             }
 
-            const itemId = results.insertId;
-
-            if (hasVariants && variants && variants.length > 0) {
-                // Insert variants for the newly created item
-                const variantInserts = variants.map(variant => [
-                    variant.name,
-                    variant.quantity,
-                    itemId,
-                ]);
-
-                db.query(
-                    'INSERT INTO Variants (name, quantity, idItem) VALUES ?',
-                    [variantInserts],
-                    (variantErr) => {
-                        if (variantErr) {
-                            console.error('Error inserting variants:', variantErr);
-                            return res.status(500).send(variantErr);
-                        }
-
-                        res.json({
-                            message: 'Item and variants added successfully!',
-                            id: itemId,
-                        });
-                    }
-                );
-            } else {
-                res.json({ message: 'Item added successfully!', id: itemId });
-            }
+            res.json({ message: 'Item added successfully!', id: results.insertId });
         }
     );
 });
-
 
 // Update an item
 router.put('/:id', (req, res) => {
@@ -92,15 +63,11 @@ router.get('/:subcategoryId', (req, res) => {
 
     const query = `
         SELECT 
-            i.idItem, 
-            i.Name, 
-            i.Quantity, 
-            CASE 
-                WHEN EXISTS (SELECT 1 FROM Variants v WHERE v.idItem = i.idItem) THEN 1 
-                ELSE 0 
-            END AS hasVariants
-        FROM Items i
-        WHERE i.idSubcategory = ?;
+            idItem, 
+            Name, 
+            Quantity
+        FROM Items
+        WHERE idSubcategory = ?;
     `;
 
     db.query(query, [subcategoryId], (err, results) => {
@@ -111,30 +78,6 @@ router.get('/:subcategoryId', (req, res) => {
             res.json(results);
         }
     });
-});
-
-
-// Get variants by item ID
-router.get('/variants/:itemId', (req, res) => {
-    const db = req.db;
-    const { itemId } = req.params;
-
-    db.query(
-        'SELECT * FROM Variants WHERE idItem = ?',
-        [itemId],
-        (err, results) => {
-            if (err) {
-                console.error('Database query error:', err);
-                res.status(500).send(err);
-            } else if (results.length === 0) {
-                console.log(`No variants found for item ID: ${itemId}`);
-                res.status(404).json({ message: 'No variants found for this item.' });
-            } else {
-                console.log(`Variants fetched successfully for item ID ${itemId}:`, results);
-                res.json(results);
-            }
-        }
-    );
 });
 
 // Update item quantity
@@ -163,25 +106,17 @@ router.put('/:id/quantity', authenticateToken, authorizeRole('Manager'), (req, r
     );
 });
 
-module.exports = router;
-
-
-
 // Get all items
 router.get('/', (req, res) => {
     const db = req.db;
 
     const query = `
         SELECT 
-            i.idItem, 
-            i.Name, 
-            i.Quantity, 
-            i.idSubcategory, 
-            CASE 
-                WHEN EXISTS (SELECT 1 FROM Variants v WHERE v.idItem = i.idItem) THEN 1 
-                ELSE 0 
-            END AS hasVariants
-        FROM Items i;
+            idItem, 
+            Name, 
+            Quantity, 
+            idSubcategory
+        FROM Items;
     `;
 
     db.query(query, (err, results) => {
@@ -193,3 +128,5 @@ router.get('/', (req, res) => {
         }
     });
 });
+
+module.exports = router;

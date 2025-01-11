@@ -4,9 +4,7 @@ import {
     getSubcategoriesByCategory,
     getItemsBySubcategory,
     getAllItems,
-    getVariantsByItem,
     updateItemQuantity,
-    updateVariantQuantity,
 } from '../services/apiService';
 import { AuthContext } from '../AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -15,14 +13,11 @@ const Dashboard = () => {
     const [categories, setCategories] = useState([]);
     const [subcategories, setSubcategories] = useState([]);
     const [items, setItems] = useState([]);
-    const [variants, setVariants] = useState([]);
     const [filteredItems, setFilteredItems] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchType, setSearchType] = useState('items'); // Dropdown selection
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-    const [selectedItemId, setSelectedItemId] = useState(null);
-    const [showVariants, setShowVariants] = useState(false);
     const { authState, logout } = useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();
@@ -62,65 +57,30 @@ const Dashboard = () => {
     const fetchItems = async (subcategoryId) => {
         try {
             const data = await getItemsBySubcategory(subcategoryId);
+            if (!Array.isArray(data)) {
+                console.error('Invalid response data for subcategory items:', data);
+                setItems([]);
+                setFilteredItems([]);
+                return;
+            }
             setItems(data);
             setFilteredItems(data);
             setSelectedSubcategory(subcategoryId);
         } catch (err) {
-            console.error('Failed to load items');
+            console.error('Failed to load items:', err.message);
+            setItems([]);
+            setFilteredItems([]);
         }
-    };
-
-    const fetchVariants = async (itemId) => {
-        setSelectedItemId(itemId);
-        try {
-            const data = await getVariantsByItem(itemId);
-            setVariants(data);
-            setShowVariants(true);
-        } catch (err) {
-            console.error('Failed to fetch variants');
-        }
-    };
-
-    const goBackToItems = () => {
-        setShowVariants(false);
-        setVariants([]);
     };
 
     const handleSearchChange = (e) => {
-        const query = e.target.value.toLowerCase();
-        setSearchQuery(query);
-
-        if (searchType === 'categories') {
-            setFilteredItems(
-                categories.filter((category) =>
-                    category.Name.toLowerCase().includes(query)
-                )
-            );
-        } else if (searchType === 'subcategories') {
-            setFilteredItems(
-                subcategories.filter((subcategory) =>
-                    subcategory.Name.toLowerCase().includes(query)
-                )
-            );
-        } else if (searchType === 'items') {
-            setFilteredItems(
-                items.filter((item) =>
-                    item.Name.toLowerCase().includes(query)
-                )
-            );
-        } else if (searchType === 'variants') {
-            setFilteredItems(
-                variants.filter((variant) =>
-                    variant.Name.toLowerCase().includes(query)
-                )
-            );
-        }
+        setSearchQuery(e.target.value.toLowerCase());
     };
 
     const handleDropdownChange = (e) => {
         setSearchType(e.target.value);
-        setSearchQuery('');
-        setFilteredItems([]); // Clear results on type change
+        setSearchQuery(''); // Clear search query when type changes
+        setFilteredItems([]); // Clear filtered results
     };
 
     const handleEditClick = (type, id, entityData) => {
@@ -132,34 +92,23 @@ const Dashboard = () => {
         });
     };
 
-    const handleQuantityChange = async (type, id, increment) => {
+    const handleQuantityChange = async (id, increment) => {
         try {
-            if (type === 'item') {
-                const updatedItem = await updateItemQuantity(id, increment);
-                setItems((prevItems) =>
-                    prevItems.map((item) =>
-                        item.idItem === id
-                            ? { ...item, Quantity: updatedItem.Quantity }
-                            : item
-                    )
-                );
-                setFilteredItems((prevItems) =>
-                    prevItems.map((item) =>
-                        item.idItem === id
-                            ? { ...item, Quantity: updatedItem.Quantity }
-                            : item
-                    )
-                );
-            } else if (type === 'variant') {
-                const updatedVariant = await updateVariantQuantity(id, increment);
-                setVariants((prevVariants) =>
-                    prevVariants.map((variant) =>
-                        variant.idVariant === id
-                            ? { ...variant, Quantity: updatedVariant.Quantity }
-                            : variant
-                    )
-                );
-            }
+            const updatedItem = await updateItemQuantity(id, increment);
+            setItems((prevItems) =>
+                prevItems.map((item) =>
+                    item.idItem === id
+                        ? { ...item, Quantity: updatedItem.Quantity }
+                        : item
+                )
+            );
+            setFilteredItems((prevItems) =>
+                prevItems.map((item) =>
+                    item.idItem === id
+                        ? { ...item, Quantity: updatedItem.Quantity }
+                        : item
+                )
+            );
         } catch (err) {
             console.error('Failed to update quantity:', err);
         }
@@ -170,40 +119,52 @@ const Dashboard = () => {
         navigate('/login');
     };
 
+    const handleCategoryClick = (idCategory) => {
+        fetchSubcategories(idCategory);
+        setSearchQuery('');
+        setFilteredItems([]);
+        setSearchType('subcategories');
+    };
+
+    const handleSubcategoryClick = (idSubcategory) => {
+        if (!idSubcategory) {
+            console.error('Invalid subcategory ID:', idSubcategory);
+            return;
+        }
+        fetchItems(idSubcategory);
+        setSearchQuery('');
+        setFilteredItems([]);
+        setSearchType('items');
+    };
+
     useEffect(() => {
         fetchCategories();
         fetchAllItems();
     }, []);
 
-    //ALL THESE NEEDED TO RESET SEARCH BAR TO NOTHING
-    const handleCategoryClick = (idCategory) => {
-        console.log('Category Clicked:', idCategory); // Debug log
-        fetchSubcategories(idCategory);
-        setSearchQuery(''); // Reset search bar
-        setSearchType('subcategories'); // Adjust search type if needed
-    };
-
-    const handleSubcategoryClick = (idSubcategory) => {
-        console.log('Subcategory Clicked:', idSubcategory); // Debug log
-        fetchItems(idSubcategory);
-        setSearchQuery(''); // Reset search bar
-        setSearchType('items'); // Adjust search type if needed
-    };
-
-    const handleItemClick = (itemId) => {
-        console.log('Item Clicked:', itemId); // Debug log
-        if (items.find((item) => item.idItem === itemId)?.hasVariants) {
-            fetchVariants(itemId);
-            setSearchQuery(''); // Reset search bar
-            setSearchType('variants'); // Adjust search type if needed
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setFilteredItems([]);
+            return;
         }
-    };
 
+        const dataMap = {
+            categories: categories,
+            subcategories: subcategories,
+            items: items,
+        };
+
+        const dataSource = dataMap[searchType] || [];
+
+        const filteredData = dataSource.filter((entry) =>
+            entry.Name.toLowerCase().includes(searchQuery)
+        );
+
+        setFilteredItems(filteredData);
+    }, [searchQuery, searchType, categories, subcategories, items]);
 
     return (
         <div>
-            <h2>Dashboard</h2>
-
             {/* Logout Button */}
             <button
                 onClick={handleLogout}
@@ -235,7 +196,11 @@ const Dashboard = () => {
             {/* Add Item Button */}
             {authState.role === 'Manager' && (
                 <button
-                    onClick={() => navigate(`/categories/${selectedCategory || 1}/add-item`, { state: { from: location.pathname } })}
+                    onClick={() =>
+                        navigate(`/categories/${selectedCategory || 1}/add-item`, {
+                            state: { from: location.pathname },
+                        })
+                    }
                     style={{
                         marginBottom: '20px',
                         backgroundColor: '#4CAF50',
@@ -248,7 +213,14 @@ const Dashboard = () => {
             )}
 
             {/* Search Bar with Dropdown */}
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div
+                style={{
+                    marginBottom: '20px',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center',
+                }}
+            >
                 <select
                     value={searchType}
                     onChange={handleDropdownChange}
@@ -262,7 +234,6 @@ const Dashboard = () => {
                     <option value="categories">Categories</option>
                     <option value="subcategories">Subcategories</option>
                     <option value="items">Items</option>
-                    <option value="variants">Variants</option>
                 </select>
                 <input
                     type="text"
@@ -332,56 +303,22 @@ const Dashboard = () => {
                             } else if (searchType === 'items') {
                                 return (
                                     <div key={item.idItem} className="dashboard-item">
-                                        {item.hasVariants ? (
-                                            <span
-                                                onClick={() => handleItemClick(item.idItem)}
-                                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                            >
-                                                {item.Name}
-                                            </span>
-                                        ) : (
-                                            <span>{item.Name}</span>
-                                        )}
-                                        {!item.hasVariants && (
-                                            <>
-                                                <button onClick={() => handleQuantityChange('item', item.idItem, -1)}>
-                                                    -
-                                                </button>
-                                                <span>{item.Quantity}</span>
-                                                <button onClick={() => handleQuantityChange('item', item.idItem, 1)}>
-                                                    +
-                                                </button>
-                                            </>
-                                        )}
-                                        {authState.role === 'Manager' && (
-                                            <button
-                                                onClick={() =>
-                                                    handleEditClick('items', item.idItem, {
-                                                        Name: item.Name,
-                                                        Quantity: item.Quantity,
-                                                    })
-                                                }
-                                            >
-                                                Edit
-                                            </button>
-                                        )}
-                                    </div>
-                                );
-                            } else if (searchType === 'variants') {
-                                return (
-                                    <div key={item.idVariant} className="dashboard-item">
                                         <span>{item.Name}</span>
-                                        <button onClick={() => handleQuantityChange('variant', item.idVariant, -1)}>
+                                        <button
+                                            onClick={() => handleQuantityChange(item.idItem, -1)}
+                                        >
                                             -
                                         </button>
                                         <span>{item.Quantity}</span>
-                                        <button onClick={() => handleQuantityChange('variant', item.idVariant, 1)}>
+                                        <button
+                                            onClick={() => handleQuantityChange(item.idItem, 1)}
+                                        >
                                             +
                                         </button>
                                         {authState.role === 'Manager' && (
                                             <button
                                                 onClick={() =>
-                                                    handleEditClick('variants', item.idVariant, {
+                                                    handleEditClick('items', item.idItem, {
                                                         Name: item.Name,
                                                         Quantity: item.Quantity,
                                                     })
@@ -400,7 +337,6 @@ const Dashboard = () => {
                     )}
                 </section>
             )}
-
 
             {/* Categories Section */}
             {!searchQuery && !selectedCategory && (
@@ -460,71 +396,22 @@ const Dashboard = () => {
             )}
 
             {/* Items Section */}
-            {!searchQuery && selectedSubcategory && !showVariants && (
+            {!searchQuery && selectedSubcategory && (
                 <section>
                     <button onClick={() => setSelectedSubcategory(null)}>Back to Subcategories</button>
                     <h3>Items</h3>
                     {items.map((item) => (
                         <div key={item.idItem} className="dashboard-item">
-                            {item.hasVariants ? (
-                                <span
-                                    onClick={() => handleItemClick(item.idItem)}
-                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                                >
-                                    {item.Name}
-                                </span>
-                            ) : (
-                                <span>{item.Name}</span>
-                            )}
-                            {!item.hasVariants && (
-                                <>
-                                    <button onClick={() => handleQuantityChange('item', item.idItem, -1)}>
-                                        -
-                                    </button>
-                                    <span>{item.Quantity}</span>
-                                    <button onClick={() => handleQuantityChange('item', item.idItem, 1)}>
-                                        +
-                                    </button>
-                                </>
-                            )}
+                            <span>{item.Name}</span>
+                            <button onClick={() => handleQuantityChange(item.idItem, -1)}>-</button>
+                            <span>{item.Quantity}</span>
+                            <button onClick={() => handleQuantityChange(item.idItem, 1)}>+</button>
                             {authState.role === 'Manager' && (
                                 <button
                                     onClick={() =>
                                         handleEditClick('items', item.idItem, {
                                             Name: item.Name,
                                             Quantity: item.Quantity,
-                                        })
-                                    }
-                                >
-                                    Edit
-                                </button>
-                            )}
-                        </div>
-                    ))}
-                </section>
-            )}
-
-            {/* Variants Section */}
-            {showVariants && (
-                <section>
-                    <button onClick={goBackToItems}>Back to Items</button>
-                    <h3>Variants for {items.find((item) => item.idItem === selectedItemId)?.Name}</h3>
-                    {variants.map((variant) => (
-                        <div key={variant.idVariant} className="dashboard-item">
-                            <span>{variant.Name}</span>
-                            <button onClick={() => handleQuantityChange('variant', variant.idVariant, -1)}>
-                                -
-                            </button>
-                            <span>{variant.Quantity}</span>
-                            <button onClick={() => handleQuantityChange('variant', variant.idVariant, 1)}>
-                                +
-                            </button>
-                            {authState.role === 'Manager' && (
-                                <button
-                                    onClick={() =>
-                                        handleEditClick('variants', variant.idVariant, {
-                                            Name: variant.Name,
-                                            Quantity: variant.Quantity,
                                         })
                                     }
                                 >

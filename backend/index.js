@@ -9,7 +9,6 @@ const categoryRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
 const itemRoutes = require('./routes/items');
 const authRoutes = require('./routes/authRoutes');
-const variantRoutes = require('./routes/variants');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,7 +28,6 @@ app.use('/categories', categoryRoutes);
 app.use('/subcategories', subcategoriesRoutes);
 app.use('/items', itemRoutes);
 app.use('/auth', authRoutes);
-app.use('/variants', variantRoutes);
 app.use('/users', userRoutes);
 
 // Default route
